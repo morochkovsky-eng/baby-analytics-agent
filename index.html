@@ -2,898 +2,426 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analytics Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Baby Analytics</title>
 <style>
-  /* ── Exact Claude.ai token values ────────────────────────
-     bg:          #FAF9F5  (rgb 250,249,245)
-     text:        #141413  (rgb 20,20,19)
-     text-muted:  #73726C
-     user-bubble: #F0EEE6  (rgb 240,238,230 = bg-bg-300)
-     input-bg:    #FFFFFF
-     sidebar:     same as bg
-     border:      rgba(0,0,0,0.1)
-     accent:      #D97757  (Anthropic orange-red)
-     avatar-dark: #3D3D3A
-  ──────────────────────────────────────────────────────── */
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:          #FAF9F5;
-    --text:        #141413;
-    --text-muted:  #73726C;
-    --text-faint:  #A8A79F;
-    --user-bubble: #F0EEE6;
-    --input-bg:    #FFFFFF;
-    --border:      rgba(20,20,19,0.10);
-    --border-med:  rgba(20,20,19,0.16);
-    --border-str:  rgba(20,20,19,0.22);
-    --accent:      #D97757;
-    --accent-dark: #C8663F;
-    --avatar-bg:   #3D3D3A;
+    --bg: #faf9f5;
+    --sidebar: #f0ede6;
+    --accent: #d97757;
+    --accent-hover: #c4683f;
+    --text: #1a1a1a;
+    --text-muted: #6b6b6b;
+    --bubble-user: #d97757;
+    --bubble-ai: #ffffff;
+    --border: #e5e0d8;
+    --input-bg: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
 
-  html, body {
-    height: 100%;
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
-    font-family: 'anthropicSans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  body { display: flex; height: 100vh; overflow: hidden; }
-
-  /* ══════════════════════════════════════════
-     SIDEBAR — exactly Claude's left nav
-  ══════════════════════════════════════════ */
-  .sidebar {
-    width: 44px;
-    flex-shrink: 0;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 10px 0 12px;
-    background: var(--bg);
-    border-right: 1px solid var(--border);
-    gap: 2px;
-  }
-
-  .sb-btn {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    flex-shrink: 0;
-  }
-  .sb-btn:hover { background: rgba(20,20,19,0.07); color: var(--text); }
-  .sb-btn svg { width: 16px; height: 16px; }
-
-  .sb-spacer { flex: 1; }
-
-  .sb-avatar {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    background: var(--avatar-bg);
-    color: #FAF9F5;
-    font-size: 11px;
-    font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-  }
-
-  /* ══════════════════════════════════════════
-     MAIN COLUMN
-  ══════════════════════════════════════════ */
-  .main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  /* ── Top bar ──────────────────────────── */
-  .topbar {
-    height: 44px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    gap: 8px;
-    /* No border — Claude doesn't show one here either */
-  }
-
-  .topbar-title {
-    font-size: 14px;
-    color: var(--text);
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .topbar-badge {
-    font-size: 12px;
-    color: var(--text-muted);
-    background: rgba(20,20,19,0.06);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 2px 8px;
-  }
-
-  .topbar-status {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    color: var(--text-faint);
-  }
-
-  .dot-live {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #22C55E;
-    box-shadow: 0 0 0 2px rgba(34,197,94,0.18);
-  }
-
-  /* ── Message list ─────────────────────── */
-  #messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 0 8px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #messages::-webkit-scrollbar { width: 5px; }
-  #messages::-webkit-scrollbar-track { background: transparent; }
-  #messages::-webkit-scrollbar-thumb { background: rgba(20,20,19,0.12); border-radius: 3px; }
-
-  /* Each turn is full-width, centered content at max-width */
-  .turn {
-    width: 100%;
-    padding: 0 48px;
-    margin-bottom: 2px;
-  }
-
-  /* User turn — right-aligned bubble */
-  .turn.user {
-    display: flex;
-    justify-content: flex-end;
-    padding-right: 48px;
-    padding-left: 120px;
-    margin-bottom: 16px;
-  }
-
-  .user-bubble {
-    background: var(--user-bubble);
-    border-radius: 18px;
-    /* Bottom-right corner is smaller — Claude's signature */
-    border-bottom-right-radius: 4px;
-    padding: 10px 16px;
-    font-size: 16px;
-    line-height: 1.5;
-    color: var(--text);
-    max-width: 680px;
-    word-break: break-word;
-  }
-
-  /* Assistant turn — icon + text */
-  .turn.assistant {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    max-width: 780px;
-    margin-bottom: 4px;
-  }
-
-  .assistant-icon {
-    width: 24px; height: 24px;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .assistant-content {
-    flex: 1;
-    min-width: 0;
-    font-size: 16px;
-    line-height: 24px;
-    color: var(--text);
-  }
-
-  /* ── Markdown inside assistant ──────── */
-  .assistant-content p { margin: 0 0 12px; }
-  .assistant-content p:last-child { margin-bottom: 0; }
-  .assistant-content strong { font-weight: 600; }
-  .assistant-content em { font-style: italic; color: var(--text-muted); }
-
-  .assistant-content h1 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; }
-  .assistant-content h2 { font-size: 18px; font-weight: 600; margin: 14px 0 6px; }
-  .assistant-content h3 {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--text-muted);
-    margin: 14px 0 6px;
-  }
-
-  .assistant-content ul, .assistant-content ol {
-    padding-left: 22px; margin: 8px 0;
-  }
-  .assistant-content li { margin: 5px 0; }
-
-  .assistant-content pre {
-    background: rgba(20,20,19,0.05);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin: 10px 0;
-    overflow-x: auto;
-    font-size: 13.5px;
-    font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
-    line-height: 1.55;
-    white-space: pre-wrap;
-    color: var(--text);
-  }
-
-  .assistant-content code {
-    font-family: ui-monospace, 'SF Mono', monospace;
-    font-size: 13.5px;
-    background: rgba(20,20,19,0.07);
-    padding: 1px 5px;
-    border-radius: 4px;
-    color: var(--accent-dark);
-  }
-
-  .assistant-content pre code {
-    background: none; padding: 0; border-radius: 0; color: inherit;
-  }
-
-  /* Tool call pill */
-  .tool-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(20,20,19,0.05);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 5px 10px;
-    font-size: 12.5px;
-    color: var(--text-muted);
-    margin: 6px 0;
-  }
-
-  .tool-pill-icon { color: var(--accent); font-size: 13px; }
-
-  .tool-pill code {
-    font-family: ui-monospace, monospace;
-    font-size: 11.5px;
-    background: none; padding: 0; border-radius: 0;
-    color: var(--text-faint);
-  }
-
-  /* Thinking dots */
-  .thinking {
-    display: flex; gap: 4px; align-items: center;
-    padding: 2px 0;
-  }
-  .thinking span {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--text-faint);
-    animation: tpulse 1.3s ease-in-out infinite;
-  }
-  .thinking span:nth-child(2) { animation-delay: 0.18s; }
-  .thinking span:nth-child(3) { animation-delay: 0.36s; }
-  @keyframes tpulse {
-    0%,60%,100% { opacity: 0.25; transform: scale(0.8); }
-    30% { opacity: 1; transform: scale(1); }
-  }
-
-  /* ── Quick pills ──────────────────────── */
-  .quick-bar {
-    padding: 6px 48px 10px;
-    display: flex;
-    gap: 7px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .qbtn {
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border-med);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: border-color 0.12s, color 0.12s, background 0.12s;
-    white-space: nowrap;
-    line-height: 1.4;
-  }
-
-  .qbtn:hover {
-    border-color: var(--border-str);
-    color: var(--text);
-    background: rgba(20,20,19,0.04);
-  }
-
-  /* ══════════════════════════════════════════
-     INPUT BAR — pixel-perfect Claude replica
-  ══════════════════════════════════════════ */
-  .input-wrap {
-    padding: 6px 24px 12px;
-    flex-shrink: 0;
-  }
-
-  .input-box {
-    background: var(--input-bg);
-    border-radius: 20px;
-    border: 1px solid rgba(20,20,19,0.14);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    transition: border-color 0.15s, box-shadow 0.15s;
     overflow: hidden;
   }
 
-  .input-box:focus-within {
-    border-color: rgba(20,20,19,0.28);
-    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-  }
-
-  #input {
-    display: block;
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: 14px 18px 6px;
-    color: var(--text);
-    font-size: 16px;
-    font-family: inherit;
-    line-height: 1.5;
-    resize: none;
-    min-height: 50px;
-    max-height: 160px;
-  }
-
-  #input::placeholder { color: var(--text-faint); }
-
-  .input-footer {
+  /* ── Auth screen ── */
+  #auth-screen {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 6px 10px 8px 14px;
-    gap: 4px;
+    justify-content: center;
+    height: 100dvh;
+    padding: 24px;
+    gap: 16px;
   }
-
-  .if-left { display: flex; align-items: center; gap: 3px; }
-  .if-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-
-  .if-icon-btn {
-    width: 30px; height: 30px;
-    border-radius: 7px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    font-size: 15px;
-  }
-  .if-icon-btn:hover { background: rgba(20,20,19,0.07); color: var(--text); }
-  .if-icon-btn svg { width: 15px; height: 15px; }
-
-  .model-chip {
-    display: flex; align-items: center; gap: 4px;
-    padding: 4px 8px;
-    border-radius: 7px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-  }
-  .model-chip:hover { background: rgba(20,20,19,0.07); color: var(--text); }
-  .model-chip svg { width: 11px; height: 11px; }
-
-  /* Voice waveform icon */
-  .voice-btn {
-    display: flex; align-items: center; gap: 1.5px;
-    padding: 8px 6px;
-    border: none; background: transparent; cursor: pointer;
-    color: var(--text-muted);
-    transition: color 0.12s;
-  }
-  .voice-btn:hover { color: var(--text); }
-  .voice-btn span {
-    display: block;
-    width: 2.5px; border-radius: 2px;
-    background: currentColor;
-  }
-
-  /* Send button — dark circle, exactly Claude */
-  #send-btn {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: var(--text);
-    color: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: background 0.14s, transform 0.1s;
-    flex-shrink: 0;
-  }
-  #send-btn:hover { background: #2a2a28; transform: scale(1.04); }
-  #send-btn:disabled { background: rgba(20,20,19,0.15); cursor: not-allowed; transform: none; }
-  #send-btn svg { width: 14px; height: 14px; }
-
-  .disclaimer {
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-faint);
-    padding: 4px 0 2px;
-  }
-
-  /* ── Password screen ─────────────────────────── */
-  .lock-screen {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
-  }
-
-  .lock-card {
-    width: 360px;
-    padding: 36px 32px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    box-shadow: var(--shadow-md);
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-  }
-
-  .lock-icon {
-    width: 48px; height: 48px;
+  #auth-screen h1 { font-size: 22px; font-weight: 600; }
+  #auth-screen p { color: var(--text-muted); font-size: 14px; }
+  #auth-screen input {
+    width: 100%;
+    max-width: 320px;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
     border-radius: 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-2);
-  }
-  .lock-icon svg { width: 22px; height: 22px; }
-
-  .lock-title {
     font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-    text-align: center;
-  }
-
-  .lock-sub {
-    font-size: 13px;
-    color: var(--text-3);
-    text-align: center;
-    margin-top: -12px;
-  }
-
-  .lock-input-wrap {
-    width: 100%;
-    position: relative;
-  }
-
-  .lock-input {
-    width: 100%;
-    padding: 10px 40px 10px 14px;
-    border: 1px solid var(--border-dark);
-    border-radius: 10px;
-    background: var(--bg);
-    font-size: 15px;
-    font-family: var(--font-ui);
-    color: var(--text);
+    background: var(--input-bg);
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    letter-spacing: 0.1em;
+    text-align: center;
+    letter-spacing: 2px;
   }
-  .lock-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(217,119,87,0.12);
-  }
-  .lock-input.error {
-    border-color: #e05252;
-    box-shadow: 0 0 0 3px rgba(224,82,82,0.12);
-    animation: shake 0.3s ease;
-  }
-
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
-  }
-
-  .lock-eye {
-    position: absolute; right: 10px; top: 50%;
-    transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: var(--text-3); padding: 4px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .lock-eye:hover { color: var(--text-2); }
-  .lock-eye svg { width: 16px; height: 16px; }
-
-  .lock-btn {
+  #auth-screen input:focus { border-color: var(--accent); }
+  #auth-btn {
     width: 100%;
-    padding: 11px;
-    border-radius: 10px;
-    border: none;
+    max-width: 320px;
+    padding: 12px;
     background: var(--accent);
     color: white;
-    font-size: 15px;
-    font-weight: 500;
-    font-family: var(--font-ui);
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
+  }
+  #auth-btn:hover { background: var(--accent-hover); }
+  #auth-error { color: #e74c3c; font-size: 13px; display: none; }
+
+  /* ── Main layout ── */
+  #main { display: none; flex-direction: column; height: 100dvh; }
+
+  /* Header */
+  header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header span { font-size: 12px; color: var(--text-muted); }
+  #new-chat-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  #new-chat-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Quick chips */
+  #chips {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border);
+  }
+  #chips::-webkit-scrollbar { display: none; }
+  .chip {
+    white-space: nowrap;
+    padding: 6px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--input-bg);
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: #fff8f5; }
+
+  /* Messages */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .msg { display: flex; flex-direction: column; max-width: 85%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.assistant { align-self: flex-start; align-items: flex-start; }
+
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .msg.user .bubble {
+    background: var(--bubble-user);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant .bubble {
+    background: var(--bubble-ai);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Markdown-like formatting in assistant bubbles */
+  .bubble table { border-collapse: collapse; font-size: 13px; margin: 8px 0; width: 100%; }
+  .bubble th, .bubble td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; }
+  .bubble th { background: var(--bg); font-weight: 600; }
+  .bubble code { background: #f0ede6; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .bubble pre { background: #f0ede6; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin: 6px 0; }
+  .bubble h1, .bubble h2, .bubble h3 { font-size: 15px; margin: 8px 0 4px; }
+  .bubble p { margin: 4px 0; }
+  .bubble ul, .bubble ol { padding-left: 18px; margin: 4px 0; }
+  .bubble hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+  /* Typing indicator */
+  .typing .bubble {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 14px;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* Input */
+  #input-area {
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  #input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 15px;
+    background: var(--input-bg);
+    resize: none;
+    outline: none;
+    max-height: 120px;
+    line-height: 1.4;
+    font-family: inherit;
+  }
+  #input:focus { border-color: var(--accent); }
+  #send-btn {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     transition: background 0.15s;
   }
-  .lock-btn:hover { background: var(--accent-hover); }
-
-  .lock-error {
-    font-size: 12.5px;
-    color: #e05252;
-    text-align: center;
-    min-height: 16px;
-  }
+  #send-btn:hover { background: var(--accent-hover); }
+  #send-btn:disabled { background: var(--border); cursor: default; }
+  #send-btn svg { fill: white; }
 </style>
 </head>
 <body>
 
-<!-- ── Sidebar ───────────────────────────────────────── -->
-<nav class="sidebar">
-  <button class="sb-btn" title="New chat">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-  </button>
-  <button class="sb-btn" title="Search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-  </button>
-  <button class="sb-btn" title="Projects" style="color:var(--text)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-  </button>
-  <button class="sb-btn" title="Starred">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-  </button>
-  <div class="sb-spacer"></div>
-  <button class="sb-btn" title="Download">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-  </button>
-  <div class="sb-avatar">VM</div>
-</nav>
+<!-- AUTH -->
+<div id="auth-screen">
+  <div style="font-size:36px">🍼</div>
+  <h1>Baby Analytics</h1>
+  <p>Введите пароль для доступа</p>
+  <input type="password" id="password-input" placeholder="••••••••" />
+  <div id="auth-error">Неверный пароль</div>
+  <button id="auth-btn" onclick="tryAuth()">Войти</button>
+</div>
 
-<!-- ── Main ──────────────────────────────────────────── -->
-<div class="main">
+<!-- MAIN -->
+<div id="main">
+  <header>
+    <div>
+      <h1>🍼 Baby Analytics</h1>
+    </div>
+    <button id="new-chat-btn" onclick="newChat()">Новый чат</button>
+  </header>
 
-  <!-- Top bar -->
-  <div class="topbar">
-    <span class="topbar-title">
-      Analytics Agent
-    </span>
-    <span class="topbar-badge">Baby Chat AI</span>
-    <div class="topbar-status">
-      <div class="dot-live"></div>
-      Supabase live
+  <div id="chips">
+    <div class="chip" onclick="sendChip(this)">📊 Сводка за сегодня</div>
+    <div class="chip" onclick="sendChip(this)">💰 Расходы</div>
+    <div class="chip" onclick="sendChip(this)">👎 Дизлайки</div>
+    <div class="chip" onclick="sendChip(this)">🐛 Ошибки</div>
+    <div class="chip" onclick="sendChip(this)">👥 Активные юзеры</div>
+    <div class="chip" onclick="sendChip(this)">📈 Активность по дням</div>
+  </div>
+
+  <div id="messages">
+    <div class="msg assistant">
+      <div class="bubble">Привет! Я аналитический агент Baby Chat AI. Спроси меня про пользователей, расходы, ошибки или статистику — схожу в базу и отвечу.</div>
     </div>
   </div>
 
-  <!-- Messages -->
-  <div id="messages"></div>
-
-  <!-- Quick pills -->
-  <div class="quick-bar">
-    <button class="qbtn" onclick="quickAsk('Покажи общую статистику: сколько лайков и дизлайков, какой процент негатива')">👍 Лайки / дизлайки</button>
-    <button class="qbtn" onclick="quickAsk('Сколько токенов потрачено и какова стоимость?')">💰 Токены и стоимость</button>
-    <button class="qbtn" onclick="quickAsk('Какие ответы получили дизлайки? Покажи user_message, ai_message и комментарий')">🔍 Плохие ответы</button>
-    <button class="qbtn" onclick="quickAsk('Проанализируй паттерны в дизлайках и предложи конкретные улучшения системного промпта')">✏️ Улучшить промпт</button>
-    <button class="qbtn" onclick="quickAsk('Покажи последние записи из debug_logs')">🐛 Debug logs</button>
-    <button class="qbtn" onclick="quickAsk('Напиши приоритизированный план задач для улучшения качества AI-ассистента')">📋 План задач</button>
+  <div id="input-area">
+    <textarea id="input" rows="1" placeholder="Спроси что-нибудь..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path d="M2 21L23 12 2 3v7l15 2-15 2v7z"/></svg>
+    </button>
   </div>
-
-  <!-- Input -->
-  <div class="input-wrap">
-    <div class="input-box">
-      <textarea id="input" placeholder="Reply..." rows="1"></textarea>
-      <div class="input-footer">
-        <div class="if-left">
-          <!-- + button -->
-          <button class="if-icon-btn" title="Attach">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          <!-- Memory/context icon -->
-          <button class="if-icon-btn" title="Context" style="color:#5B8DEF">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </button>
-        </div>
-        <div class="if-right">
-          <button class="model-chip">
-            Sonnet 4.6
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <!-- Voice waveform -->
-          <button class="voice-btn" title="Voice">
-            <span style="height:8px"></span>
-            <span style="height:14px"></span>
-            <span style="height:10px"></span>
-            <span style="height:16px"></span>
-            <span style="height:10px"></span>
-            <span style="height:14px"></span>
-            <span style="height:8px"></span>
-          </button>
-          <button id="send-btn" onclick="sendMessage()" title="Send">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" stroke="none"></polygon>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-    <p class="disclaimer">Claude is AI and can make mistakes. Please double-check responses.</p>
-  </div>
-
-</div><!-- /main -->
+</div>
 
 <script>
+  // ── Config ──
+  const EDGE_FUNCTION_URL = 'https://ygllwgdiwhchtvlltsja.supabase.co/functions/v1/analytics-agent';
 
-// ── Password lock ────────────────────────────────────────────────────────
-const PASSWORD = 'baby2024';
+  // ── State ──
+  let password = '';
+  let history = [];
+  let isLoading = false;
 
-function unlock() {
-  const val = document.getElementById('lock-input').value;
-  const inp = document.getElementById('lock-input');
-  const err = document.getElementById('lock-error');
-  if (val === PASSWORD) {
-    document.getElementById('lock-screen').style.display = 'none';
-    inp.value = '';
-    err.textContent = '';
-  } else {
-    err.textContent = 'Неверный пароль';
-    inp.classList.add('error');
-    inp.value = '';
-    setTimeout(() => inp.classList.remove('error'), 600);
-    inp.focus();
+  // ── Auth ──
+  function tryAuth() {
+    const val = document.getElementById('password-input').value;
+    if (!val) return;
+    password = val;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main').style.display = 'flex';
   }
-}
 
-function toggleEye() {
-  const inp = document.getElementById('lock-input');
-  const icon = document.getElementById('eye-icon');
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
-  } else {
-    inp.type = 'password';
-    icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  document.getElementById('password-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryAuth();
+  });
+
+  // ── Chat ──
+  function newChat() {
+    history = [];
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '<div class="msg assistant"><div class="bubble">Привет! Я аналитический агент Baby Chat AI. Спроси меня про пользователей, расходы, ошибки или статистику — схожу в базу и отвечу.</div></div>';
   }
-}
 
-const SUPABASE_URL = 'https://ygllwgdiwhchtvlltsja.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlnbGx3Z2Rpd2hjaHR2bGx0c2phIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc4ODA4MywiZXhwIjoyMDg4MzY0MDgzfQ.MkTjPHXBYjYE3gRL78Il1_gX-5doLTDCmprU6urzBv0';
-
-let chatHistory = [];
-let isLoading = false;
-
-const tools = [{
-  name: "query_supabase",
-  description: "Query Supabase via REST/PostgREST. Tables: feedback(id,created_at,response_id,rating[like|dislike],comment), responses(id,created_at,session_id,user_id,app_version,build,user_message,ai_message,triage_level,response_profile,model,tokens_prompt,tokens_completion,cost_usd), debug_logs(id,message,created_at), profiles(empty).",
-  input_schema: {
-    type: "object",
-    properties: {
-      table: { type: "string", description: "feedback | responses | debug_logs | profiles" },
-      params: { type: "string", description: "PostgREST query string e.g. 'select=*&rating=eq.dislike&limit=50&order=created_at.desc'" }
-    },
-    required: ["table", "params"]
+  function sendChip(el) {
+    document.getElementById('input').value = el.textContent.replace(/^[^\s]+ /, '').trim();
+    sendMessage();
   }
-}];
 
-async function executeTool(name, input) {
-  if (name !== "query_supabase") return JSON.stringify({ error: "Unknown tool" });
-  const { table, params } = input;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=exact' }
-    });
-    if (!res.ok) return JSON.stringify({ error: `HTTP ${res.status}`, body: await res.text() });
-    const data = await res.json();
-    return JSON.stringify({ data, rows: Array.isArray(data) ? data.length : 0, range: res.headers.get('content-range') });
-  } catch(e) {
-    return JSON.stringify({ error: e.message });
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }
-}
 
-async function runAgent(userMessage, statusEl) {
-  chatHistory.push({ role: 'user', content: userMessage });
-
-  const system = `Ты аналитический агент для iOS-приложения "Baby Chat AI" — трекер событий младенцев с AI-ассистентом на базе OpenAI.
-
-БАЗА ДАННЫХ (Supabase):
-- responses: ответы AI. Поля: user_message, ai_message, triage_level (L0/L1/L2/none), response_profile (quick/standard/alert), model, tokens_prompt, tokens_completion, cost_usd, session_id, app_version, build
-- feedback: оценки ответов. Поля: response_id (→ responses.id), rating (like|dislike), comment
-- debug_logs: iOS-логи. Поля: message, created_at
-- profiles: пустая
-
-ПРАВИЛА:
-1. Всегда вызывай query_supabase для получения данных перед ответом
-2. Для JOIN feedback↔responses: получи response_id из feedback → запроси responses через or=(id.eq.X,id.eq.Y)
-3. Отвечай по-русски, конкретно, с числами из данных
-4. Улучшения промпта: показывай конкретно было→стало на основе паттернов дизлайков
-5. Планы задач: **P0/P1/P2** — Задача — обоснование из данных
-6. Используй заголовки ## и списки для структурирования`;
-
-  let msgs = [...chatHistory];
-
-  for (let iter = 0; iter < 10; iter++) {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system, tools, messages: msgs })
-    });
-    const data = await r.json();
-    if (!r.ok) return `Ошибка API: ${data.error?.message}`;
-
-    msgs.push({ role: 'assistant', content: data.content });
-
-    if (data.stop_reason === 'end_turn') {
-      chatHistory = msgs;
-      return data.content.find(b => b.type === 'text')?.text || '';
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
+  }
 
-    if (data.stop_reason === 'tool_use') {
-      const uses = data.content.filter(b => b.type === 'tool_use');
-      const results = [];
-      for (const u of uses) {
-        if (statusEl) statusEl.innerHTML = mkToolPill(u.input.table, u.input.params);
-        const out = await executeTool(u.name, u.input);
-        results.push({ type: 'tool_result', tool_use_id: u.id, content: out });
+  function addMessage(role, text) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = role === 'assistant' ? formatMarkdown(text) : escapeHtml(text);
+    div.appendChild(bubble);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg assistant typing';
+    div.id = 'typing';
+    div.innerHTML = '<div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  async function sendMessage() {
+    if (isLoading) return;
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage('user', text);
+    showTyping();
+    isLoading = true;
+    document.getElementById('send-btn').disabled = true;
+
+    try {
+      const res = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, password, history }),
+      });
+
+      const data = await res.json();
+      removeTyping();
+
+      if (data.error) {
+        addMessage('assistant', `❌ Ошибка: ${data.error}`);
+      } else {
+        addMessage('assistant', data.answer);
+        history = data.history || [];
       }
-      msgs.push({ role: 'user', content: results });
+    } catch (e) {
+      removeTyping();
+      addMessage('assistant', `❌ Не удалось подключиться к серверу: ${e.message}`);
     }
-  }
-  return 'Превышен лимит итераций.';
-}
 
-function mkToolPill(table, params) {
-  const short = (params||'').substring(0, 65);
-  return `<div class="tool-pill"><span class="tool-pill-icon">⚙</span> ${table} <code>${short}${params?.length>65?'…':''}</code></div>`;
-}
-
-async function sendMessage() {
-  const inp = document.getElementById('input');
-  const text = inp.value.trim();
-  if (!text || isLoading) return;
-
-  inp.value = ''; inp.style.height = 'auto';
-  appendUserTurn(text);
-  isLoading = true;
-  document.getElementById('send-btn').disabled = true;
-
-  const { content, status } = appendAssistantTurn();
-
-  try {
-    const answer = await runAgent(text, status);
-    status.remove();
-    content.innerHTML = renderMd(answer);
-  } catch(e) {
-    status.remove();
-    content.innerHTML = `<span style="color:#E5534B">Ошибка: ${e.message}</span>`;
+    isLoading = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('input').focus();
   }
 
-  isLoading = false;
-  document.getElementById('send-btn').disabled = false;
-  scrollBottom();
-}
+  // ── Markdown formatter ──
+  function formatMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Code blocks
+      .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // Headers
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      // HR
+      .replace(/^---$/gm, '<hr>')
+      // Tables
+      .replace(/(\|.+\|\n?)+/g, (match) => {
+        const rows = match.trim().split('\n').filter(r => !/^\|[-| :]+\|$/.test(r));
+        if (rows.length < 2) return match;
+        const header = rows[0].split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
+        const body = rows.slice(1).map(r =>
+          '<tr>' + r.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
+        ).join('');
+        return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+      })
+      // Lists
+      .replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+      // Paragraphs
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+  }
 
-function appendUserTurn(text) {
-  const turn = document.createElement('div');
-  turn.className = 'turn user';
-  const bubble = document.createElement('div');
-  bubble.className = 'user-bubble';
-  bubble.textContent = text;
-  turn.appendChild(bubble);
-  document.getElementById('messages').appendChild(turn);
-  scrollBottom();
-}
-
-function appendAssistantTurn() {
-  const turn = document.createElement('div');
-  turn.className = 'turn assistant';
-
-  // Anthropic asterisk icon
-  const icon = document.createElement('div');
-  icon.className = 'assistant-icon';
-  icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-    <path d="M12 2 L10.2 8.8 L4 7.5 L8.5 12 L4 16.5 L10.2 15.2 L12 22 L13.8 15.2 L20 16.5 L15.5 12 L20 7.5 L13.8 8.8 Z" fill="#D97757"/>
-  </svg>`;
-
-  const content = document.createElement('div');
-  content.className = 'assistant-content';
-
-  const status = document.createElement('div');
-  status.innerHTML = '<div class="thinking"><span></span><span></span><span></span></div>';
-  content.appendChild(status);
-
-  turn.appendChild(icon);
-  turn.appendChild(content);
-  document.getElementById('messages').appendChild(turn);
-  scrollBottom();
-  return { content, status };
-}
-
-function renderMd(text) {
-  // Process code blocks first
-  text = text.replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-  text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  // Headers
-  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  // Bold
-  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Lists
-  text = text.replace(/^[-•*] (.+)$/gm, '<li>$1</li>');
-  text = text.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
-  // Wrap consecutive <li>
-  text = text.replace(/(<li>.*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
-  // Paragraphs
-  const paras = text.split(/\n\n+/);
-  return paras.map(p => {
-    p = p.trim();
-    if (!p) return '';
-    if (/^<(h[123]|ul|pre)/.test(p)) return p;
-    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-  }).join('\n');
-}
-
-function scrollBottom() {
-  const m = document.getElementById('messages');
-  requestAnimationFrame(() => { m.scrollTop = m.scrollHeight; });
-}
-
-function quickAsk(text) {
-  document.getElementById('input').value = text;
-  sendMessage();
-}
-
-document.getElementById('input').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
-});
-document.getElementById('input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
-
-// ── Welcome message ───────────────────────────────────
-;(function() {
-  const turn = document.createElement('div');
-  turn.className = 'turn assistant';
-  turn.innerHTML = `
-    <div class="assistant-icon">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-        <path d="M12 2 L10.2 8.8 L4 7.5 L8.5 12 L4 16.5 L10.2 15.2 L12 22 L13.8 15.2 L20 16.5 L15.5 12 L20 7.5 L13.8 8.8 Z" fill="#D97757"/>
-      </svg>
-    </div>
-    <div class="assistant-content">
-      <p>Привет, Вова. Я подключён к твоему Supabase и готов анализировать данные Baby Chat AI в реальном времени.</p>
-      <p>Вижу четыре таблицы: <strong>responses</strong> с ответами ассистента и токенами, <strong>feedback</strong> с лайками и дизлайками, <strong>debug_logs</strong> с iOS-логами, и <strong>profiles</strong>. Перед каждым ответом сам делаю запросы в базу — данные всегда актуальные.</p>
-      <p>С чего начнём?</p>
-    </div>`;
-  document.getElementById('messages').appendChild(turn);
-})();
+  function escapeHtml(text) {
+    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
 </script>
 </body>
 </html>

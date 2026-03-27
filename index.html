@@ -530,20 +530,41 @@
     const userMsg = document.getElementById('user-message-input').value.trim();
     if (!userMsg) return;
 
-    const prompt = `Проанализируй сообщение пользователя. Опирайся ТОЛЬКО на system_specs — не додумывай.
+    const prompt = `Проанализируй сообщение пользователя СТРОГО через реальные спецификации Baby Chat AI.
+Опирайся ТОЛЬКО на system_specs. Для каждого пункта укажи spec.key.
+Если в спецификациях нет данных — пиши: "В спецификациях этого нет". Не додумывай.
 
 Сообщение: "${userMsg}"
 
-Для каждого пункта укажи spec.key из которого берёшь информацию.
-Если в спецификациях нет данных по пункту — так и напиши: "В спецификациях этого нет".
+ШАГ 1 — Найди релевантные спецификации:
+Какие из этих spec.key применимы к данному сообщению?
+pipeline_architecture / event_contract / time_rules / trigger_rules / writer_rules
 
-1. [spec: pipeline_architecture] На какой фазе pipeline перехватывается это сообщение? Какой маршрут (logOnly / assist / upsell)?
-2. [spec: event_contract] Какой intent в messageAnalysis? Сколько событий в events[]? Какой status у каждого?
-3. [spec: time_rules] Какой mode в объекте time? Как нормализовалось время из этого текста?
-4. [spec: trigger_rules] Какое из 8 правил TriggerRules сработало? Какой severity (L0/L1/L2)?
-5. [spec: writer_rules] Какой responseProfile был бы выбран и почему?
+ШАГ 2 — Покажи ожидаемый результат извлечения [spec: event_contract]:
+- Какой messageAnalysis.intent?
+- Сколько событий в events[] и почему (Rule 4: multi-event обязателен)?
+- Для каждого события: domain, type, status, value, unit, childRef
+- Какой mode в объекте time для каждого события? [spec: time_rules]
 
-Если что-то могло привести к ошибке — укажи конкретное правило из спека которое было нарушено.`;
+ШАГ 3 — Покажи ожидаемый CommitPlan:
+- Какие события коммитятся (status=confident) и какие понижаются до note_fallback (Rule 3)?
+- Какой severity из TriggerEngine и какой маршрут (logOnly / assist / upsell)? [spec: trigger_rules]
+- Какое из 8 правил TriggerRules сработало?
+
+ШАГ 4 — Структурированный вывод:
+
+**Что должно быть** (по спекам):
+[опиши ожидаемое поведение]
+
+**Что могло произойти** (если это разбор бага):
+[опиши фактическое поведение если известно]
+
+**Где расхождение**:
+[укажи конкретный spec.key и правило которое нарушено, или "расхождений нет"]
+
+ВАЖНО:
+- LLM-first — основной путь извлечения, локальные парсеры не должны перехватывать [spec: pipeline_architecture]
+- НЕ использовать этапы которых нет в спецификациях`;
 
     document.getElementById('input').value = prompt;
     sendMessage();

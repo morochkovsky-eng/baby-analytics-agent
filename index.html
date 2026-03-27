@@ -433,12 +433,12 @@
       { label: '📈 Активность по дням', text: 'Активность по дням' },
     ],
     debug: [
-      { label: '🔍 Почему логOnly?', text: 'Объясни почему pipeline выбрал маршрут logOnly для этого сообщения' },
-      { label: '⚠️ Почему нет триажа?', text: 'Почему TriggerEngine не поднял severity для этого сигнала?' },
-      { label: '🕐 Проблема со временем', text: 'Объясни как time-объект был нормализован из этого сообщения' },
-      { label: '👶 Кто ребёнок?', text: 'Объясни как safeResolveChild определил ребёнка в этом запросе' },
-      { label: '📦 Сколько событий?', text: 'Сколько событий должно было быть извлечено и почему?' },
-      { label: '🔀 Почему upsell?', text: 'Объясни логику — почему запрос получил маршрут upsell а не assist' },
+      { label: '🔍 Почему logOnly?', text: 'По spec pipeline_architecture: объясни почему этот маршрут logOnly. Укажи конкретную фазу и правило из спека. Не додумывай.' },
+      { label: '⚠️ Почему нет триажа?', text: 'По spec trigger_rules: какое из 8 правил должно было сработать? Какой TTL у этого сигнала? Только из спеков.' },
+      { label: '🕐 Проблема со временем', text: 'По spec event_contract (раздел time): какой mode был присвоен? Если время не распознано — какое правило нарушено?' },
+      { label: '👶 Кто ребёнок?', text: 'По spec pipeline_architecture (safeResolveChild): в каком порядке проверяются источники? На каком шаге остановилось?' },
+      { label: '📦 Сколько событий?', text: 'По spec event_contract Rule 4: все события должны быть в events[]. Сколько событий в этом сообщении и почему?' },
+      { label: '🔀 Почему upsell?', text: 'По spec pipeline_architecture + trigger_rules: какой severity дал TriggerEngine и почему это привело к upsell а не assist?' },
     ],
   };
 
@@ -530,18 +530,20 @@
     const userMsg = document.getElementById('user-message-input').value.trim();
     if (!userMsg) return;
 
-    const prompt = `Проанализируй следующее сообщение пользователя через pipeline Baby Chat AI.
+    const prompt = `Проанализируй сообщение пользователя. Опирайся ТОЛЬКО на system_specs — не додумывай.
 
-Сообщение пользователя: "${userMsg}"
+Сообщение: "${userMsg}"
 
-Разбери пошагово:
-1. **Pipeline фаза** — на какой фазе это сообщение было бы перехвачено (A0, A, pre-router, A-1, A-2.x, A-TWIN, B, LLM-first)?
-2. **LLM Extraction Contract** — какой messageAnalysis.intent был бы присвоен, сколько событий в events[], что попало бы в modifiers
-3. **Time resolution** — какой mode в объекте time, как нормализовалось время
-4. **TriggerEngine** — какие правила из TriggerRules сработали бы, какой severity (L0/L1/L2) и route (logOnly/assist/upsell)
-5. **Итог** — что пользователь увидел бы в ответе и почему
+Для каждого пункта укажи spec.key из которого берёшь информацию.
+Если в спецификациях нет данных по пункту — так и напиши: "В спецификациях этого нет".
 
-Если что-то в сообщении могло привести к ошибке — укажи явно и объясни почему.`;
+1. [spec: pipeline_architecture] На какой фазе pipeline перехватывается это сообщение? Какой маршрут (logOnly / assist / upsell)?
+2. [spec: event_contract] Какой intent в messageAnalysis? Сколько событий в events[]? Какой status у каждого?
+3. [spec: time_rules] Какой mode в объекте time? Как нормализовалось время из этого текста?
+4. [spec: trigger_rules] Какое из 8 правил TriggerRules сработало? Какой severity (L0/L1/L2)?
+5. [spec: writer_rules] Какой responseProfile был бы выбран и почему?
+
+Если что-то могло привести к ошибке — укажи конкретное правило из спека которое было нарушено.`;
 
     document.getElementById('input').value = prompt;
     sendMessage();
